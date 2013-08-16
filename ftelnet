@@ -10,17 +10,36 @@ import signal
 
 def signalhandler(signal, frame):
     finfo("Caught Ctrl+c")
+    closelogfile()
+    fexit()
     sys.exit(0)
 
-def fexecute(cmd):
-    print(cmd)
-    tn.write(cmd + "\n")
+def flogin(user):
+    flog("\tLogin %s" % user)
+    tn.write(user + "\n")
     tn.read_until(PROMPT)
+
+def initlogfile():
+    global logfile
+    logfile = open('log', 'w')
+
+def writelog(msg):
+    logfile.write(msg)
+    logfile.write("\n")
+
+def closelogfile():
+    logfile.close()
+
+def fexecute(cmd):
+    cmd = cmd.rstrip('\r\n')
+    flog("\t%s" % cmd)
+    tn.write(cmd + "\n")
+    log = tn.read_until(PROMPT)
+    writelog(log)
+    fwarn("Done")
 
 def fexit():
     tn.write('exit\n')
-    finfo("Ctrl+c, to exit the application")
-    print tn.read_all()
 
 def usage(argv):
     print "Usage %s [TARGET]" % (argv[0])
@@ -28,11 +47,15 @@ def usage(argv):
 def frunfile(script):
     f = open(script, 'r')
     for line in f:
-        line.strip('\n')
-        if line == '\n':
+        line = line.rstrip('\r\n')
+        if line == '':
             continue
-        print line
+        if re.match("#.*", line):
+            continue
         fexecute(line)
+
+def flog(msg):
+    print("\033[1;21m%s\033[0m" % msg)
 
 def fwarn(msg):
     print("\033[1;33m%s\033[0m" % msg)
@@ -46,6 +69,8 @@ def finfo(msg):
 def main(argv=sys.argv):
     global PROMPT
     global tn
+    PROMPT = 'tangox['
+    tn = None
 
     signal.signal(signal.SIGINT, signalhandler)
 
@@ -58,10 +83,9 @@ def main(argv=sys.argv):
 
     output = None
     TARGET = None
-    user = "root"
-    PROMPT = 'tangox['
     fdir = None
     fscript = None
+    user = "root"
 
     for o, a in opts:
         if o in ("-d", "--directory"):
@@ -76,6 +100,8 @@ def main(argv=sys.argv):
         else:
             assert False, "Unhandled option %s" % o
 
+    initlogfile()
+
     if TARGET == None:
         ferror("Need Target")
         usage(argv)
@@ -85,7 +111,7 @@ def main(argv=sys.argv):
 
     tn = telnetlib.Telnet(TARGET)
     tn.read_until("login: ")
-    fexecute(user)
+    flogin(user)
     if fscript != None:
         finfo("Executing %s " % fscript)
         frunfile(fscript)
@@ -98,8 +124,9 @@ def main(argv=sys.argv):
             fileT = re.sub("//", "/", fileT)
             finfo("Executing %s " % fileT)
             frunfile(fileT)
-
-    fexit()
+            
+    finfo("Ctrl+c, to exit the application")
+    tn.read_all()
 
 if __name__ == "__main__":
     main()
