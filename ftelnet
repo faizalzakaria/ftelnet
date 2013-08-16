@@ -4,14 +4,22 @@ import getpass
 import sys
 import telnetlib
 import getopt
+import os
+import re
+import signal
+
+def signalhandler(signal, frame):
+    finfo("Caught Ctrl+c")
+    sys.exit(0)
 
 def fexecute(cmd):
     print(cmd)
     tn.write(cmd + "\n")
-    print tn.read_until(PROMPT)
+    tn.read_until(PROMPT)
 
 def fexit():
     tn.write('exit\n')
+    finfo("Ctrl+c, to exit the application")
     print tn.read_all()
 
 def usage(argv):
@@ -26,16 +34,25 @@ def frunfile(script):
         print line
         fexecute(line)
 
-def main(argv=sys.argv):
-    print("ftelnet test")
+def fwarn(msg):
+    print("\033[1;33m%s\033[0m" % msg)
 
+def ferror(msg):
+    print("\033[1;31m%s\033[0m" % msg)
+
+def finfo(msg):
+    print("\033[1;32m%s\033[0m" % msg)
+
+def main(argv=sys.argv):
     global PROMPT
     global tn
 
+    signal.signal(signal.SIGINT, signalhandler)
+
     try:
-        opts, args = getopt.getopt(argv[1:], 'i:t:h', ["help", "output="])
+        opts, args = getopt.getopt(argv[1:], 'd:i:t:h', ["help", "output="])
     except getopt.GetoptError as err:
-        print str(err)
+        ferror(str(err))
         usage()
         sys.exit(2)
 
@@ -43,11 +60,13 @@ def main(argv=sys.argv):
     TARGET = None
     user = "root"
     PROMPT = 'tangox['
+    fdir = None
     fscript = None
 
     for o, a in opts:
-        if o in ("-i", "--input"):
-            print a
+        if o in ("-d", "--directory"):
+            fdir = a
+        elif o in ("-i", "--input"):
             fscript = a
         elif o in ("-h", "--help"):
             usage()
@@ -55,21 +74,30 @@ def main(argv=sys.argv):
         elif o in ("-t", "--target"):
             TARGET = a
         else:
-            assert False, "Unhandled option"
+            assert False, "Unhandled option %s" % o
 
-    print "=== %s " % fscript
     if TARGET == None:
-        print "Need Target"
+        ferror("Need Target")
         usage(argv)
         sys.exit(2)
+
+    finfo("Connecting to %s ..." % TARGET)
 
     tn = telnetlib.Telnet(TARGET)
     tn.read_until("login: ")
     fexecute(user)
     if fscript != None:
-        print(fscript)
-        #fexecute(fscript)
+        finfo("Executing %s " % fscript)
         frunfile(fscript)
+
+    if fdir != None:
+        path = os.path.join(os.getcwd(), fdir)
+        for files in sorted(os.listdir(path)):
+            fileT = "%s/%s" % (path, files)
+            fileT.strip()
+            fileT = re.sub("//", "/", fileT)
+            finfo("Executing %s " % fileT)
+            frunfile(fileT)
 
     fexit()
 
