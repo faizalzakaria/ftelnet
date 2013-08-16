@@ -1,0 +1,77 @@
+#!/usr/bin/env python
+
+import getpass
+import sys
+import telnetlib
+import getopt
+
+def fexecute(cmd):
+    print(cmd)
+    tn.write(cmd + "\n")
+    print tn.read_until(PROMPT)
+
+def fexit():
+    tn.write('exit\n')
+    print tn.read_all()
+
+def usage(argv):
+    print "Usage %s [TARGET]" % (argv[0])
+
+def frunfile(script):
+    f = open(script, 'r')
+    for line in f:
+        line.strip('\n')
+        if line == '\n':
+            continue
+        print line
+        fexecute(line)
+
+def main(argv=sys.argv):
+    print("ftelnet test")
+
+    global PROMPT
+    global tn
+
+    try:
+        opts, args = getopt.getopt(argv[1:], 'i:t:h', ["help", "output="])
+    except getopt.GetoptError as err:
+        print str(err)
+        usage()
+        sys.exit(2)
+
+    output = None
+    TARGET = None
+    user = "root"
+    PROMPT = 'tangox['
+    fscript = None
+
+    for o, a in opts:
+        if o in ("-i", "--input"):
+            print a
+            fscript = a
+        elif o in ("-h", "--help"):
+            usage()
+            sys.exit()
+        elif o in ("-t", "--target"):
+            TARGET = a
+        else:
+            assert False, "Unhandled option"
+
+    print "=== %s " % fscript
+    if TARGET == None:
+        print "Need Target"
+        usage(argv)
+        sys.exit(2)
+
+    tn = telnetlib.Telnet(TARGET)
+    tn.read_until("login: ")
+    fexecute(user)
+    if fscript != None:
+        print(fscript)
+        #fexecute(fscript)
+        frunfile(fscript)
+
+    fexit()
+
+if __name__ == "__main__":
+    main()
