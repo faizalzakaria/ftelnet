@@ -14,3 +14,5 @@ Testing automation script
 ```
 ./ftelnet -t <Target-ip> -d <dir>
 ```
+
+http://asciii.fixxel.org/a/56
