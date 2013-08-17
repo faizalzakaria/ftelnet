@@ -41,20 +41,32 @@ def initlogfile():
     global logfile
     logfile = open('log', 'w')
 
-def writelog(msg):
+def writelog(cmd, msg):
+    logfile.write("=" * 40)
+    logfile.write("\n" + cmd + "\n")
     logfile.write(msg)
     logfile.write("\n")
 
 def closelogfile():
     logfile.close()
 
-def fexecute(cmd):
+def fexec(cmd):
     cmd = cmd.rstrip('\r\n')
     flog("\t%s" % cmd)
     tn.write(cmd + "\n")
     log = tn.read_until(PROMPT)
-    writelog(log)
-    fwarn("Done")
+    writelog(cmd, log)
+
+def fexecwfeedback(cmd):
+    fexec(cmd)
+    tn.write("echo $?\n")
+    t = tn.read_until(PROMPT)
+    retS = t.rsplit('\n')
+    ret = int(retS[1])
+    if ret == 0:
+        fwarn("OK")
+    else:
+        ferror("Failed")
 
 def fexit():
     tn.write('exit\n')
@@ -70,7 +82,7 @@ def frunfile(script):
             continue
         if re.match("#.*", line):
             continue
-        fexecute(line)
+        fexecwfeedback(line)
 
 def flog(msg):
     print("\033[1;21m%s\033[0m" % msg)
