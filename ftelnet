@@ -60,7 +60,7 @@ def fexec(cmd):
 def fexecwfeedback(cmd):
     fexec(cmd)
     tn.write("echo $?\n")
-    t = tn.read_until(PROMPT)
+    t = tn.read_until(PROMPT, TIMEOUT)
     retS = t.rsplit('\n')
     ret = int(retS[1])
     if ret == 0:
@@ -102,6 +102,8 @@ def main(argv=sys.argv):
 
     global PROMPT
     global tn
+    global TIMEOUT
+    TIMEOUT = 2
     PROMPT = 'tangox['
     tn = None
 
@@ -146,11 +148,17 @@ def main(argv=sys.argv):
     tn.read_until("login: ")
     flogin(user)
     if fscript != None:
+        if not os.path.isfile(fscript):
+            ferror("File is missing, %s" % fscript)
+            sys.exit(2)
         finfo("Executing %s " % fscript)
         frunfile(fscript)
 
     if fdir != None:
-        path = os.path.join(os.getcwd(), fdir)
+        path = os.path.abspath(fdir)
+        if not os.path.isdir(path):
+            ferror("Dir is missing, %s" % fdir)
+            sys.exit(2)
         for files in sorted(os.listdir(path)):
             fileT = "%s/%s" % (path, files)
             fileT.strip()
